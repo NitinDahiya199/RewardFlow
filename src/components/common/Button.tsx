@@ -1,5 +1,23 @@
 // src/components/common/Button.tsx
-import styled from 'styled-components';
+import styled, { keyframes } from 'styled-components';
+
+const shimmer = keyframes`
+  0% {
+    background-position: -1000px 0;
+  }
+  100% {
+    background-position: 1000px 0;
+  }
+`;
+
+const pulse = keyframes`
+  0%, 100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.8;
+  }
+`;
 
 interface ButtonProps {
   variant?: 'primary' | 'secondary' | 'danger' | 'outline';
@@ -22,55 +40,97 @@ export const Button = styled.button<ButtonProps>`
   border: none;
   border-radius: ${({ theme }) => theme.borderRadius.md};
   cursor: pointer;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   width: ${({ fullWidth }) => (fullWidth ? '100%' : 'auto')};
+  position: relative;
+  overflow: hidden;
+  backdrop-filter: blur(10px);
+  
+  &::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: -100%;
+    width: 100%;
+    height: 100%;
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.2),
+      transparent
+    );
+    transition: left 0.5s;
+  }
+  
+  &:hover::before {
+    left: 100%;
+  }
   
   ${({ variant = 'primary', theme }) => {
     switch (variant) {
       case 'primary':
         return `
-          background-color: ${theme.colors.primary};
+          background: ${theme.gradients.primary};
           color: white;
+          box-shadow: 0 4px 15px rgba(99, 102, 241, 0.4);
           &:hover {
-            background-color: ${theme.colors.primaryDark};
+            transform: translateY(-2px);
+            box-shadow: ${theme.shadows.glow};
+          }
+          &:active {
+            transform: translateY(0);
           }
         `;
       case 'secondary':
         return `
-          background-color: ${theme.colors.secondary};
+          background: ${theme.gradients.secondary};
           color: white;
+          box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
           &:hover {
-            background-color: ${theme.colors.secondaryDark};
+            transform: translateY(-2px);
+            box-shadow: ${theme.shadows.glowSecondary};
+          }
+          &:active {
+            transform: translateY(0);
           }
         `;
       case 'danger':
         return `
-          background-color: ${theme.colors.danger};
+          background: linear-gradient(135deg, ${theme.colors.danger} 0%, ${theme.colors.dangerDark} 100%);
           color: white;
+          box-shadow: 0 4px 15px rgba(239, 68, 68, 0.4);
           &:hover {
-            background-color: ${theme.colors.dangerDark};
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(239, 68, 68, 0.5);
+          }
+          &:active {
+            transform: translateY(0);
           }
         `;
       case 'outline':
         return `
-          background-color: transparent;
+          background: transparent;
           color: ${theme.colors.primary};
           border: 2px solid ${theme.colors.primary};
+          backdrop-filter: blur(10px);
           &:hover {
-            background-color: ${theme.colors.primary};
+            background: ${theme.gradients.primary};
             color: white;
+            border-color: transparent;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3);
+          }
+          &:active {
+            transform: translateY(0);
           }
         `;
     }
   }}
 
   &:disabled {
-    opacity: 0.6;
+    opacity: 0.5;
     cursor: not-allowed;
-  }
-
-  &:active {
-    transform: scale(0.98);
+    transform: none !important;
   }
 `;
 

@@ -9,30 +9,50 @@ const ProfileIconLink = styled(Link)`
   width: 42px;
   height: 42px;
   border-radius: ${({ theme }) => theme.borderRadius.full};
-  background: linear-gradient(135deg, ${({ theme }) => theme.colors.primary} 0%, ${({ theme }) => theme.colors.secondary} 100%);
+  background: ${({ theme }) => theme.gradients.primary};
   color: white;
   text-decoration: none;
-  transition: all 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   cursor: pointer;
-  border: 2px solid ${({ theme }) => theme.colors.border};
-  box-shadow: ${({ theme }) => theme.shadows.sm};
+  border: 2px solid transparent;
+  box-shadow: ${({ theme }) => theme.shadows.glow};
   position: relative;
   overflow: hidden;
 
+  &::before {
+    content: '';
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    width: 0;
+    height: 0;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.2);
+    transform: translate(-50%, -50%);
+    transition: width 0.3s ease, height 0.3s ease;
+  }
+
   &:hover {
-    transform: scale(1.08);
-    box-shadow: ${({ theme }) => theme.shadows.md};
-    border-color: ${({ theme }) => theme.colors.primary};
+    transform: scale(1.1);
+    box-shadow: ${({ theme }) => theme.shadows.glow};
+    border-color: ${({ theme }) => theme.colors.primaryLight};
+    
+    &::before {
+      width: 100%;
+      height: 100%;
+    }
   }
 
   &:active {
-    transform: scale(0.96);
+    transform: scale(0.95);
   }
 
   svg {
     width: 24px;
     height: 24px;
     stroke-width: 2;
+    position: relative;
+    z-index: 1;
   }
 `;
 

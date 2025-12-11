@@ -17,7 +17,11 @@ const TasksHeader = styled.div`
 const PageTitle = styled.h1`
   margin: 0;
   font-size: ${({ theme }) => theme.fontSize.xxxl};
-  color: ${({ theme }) => theme.colors.text};
+  background: ${({ theme }) => theme.gradients.primary};
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  font-weight: ${({ theme }) => theme.fontWeight.bold};
 `;
 
 const TaskFormCard = styled(Card)`
@@ -36,11 +40,11 @@ const TasksList = styled.div`
 
 const TaskCard = styled(Card)`
   position: relative;
-  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
 
   &:hover {
-    transform: translateY(-2px);
-    box-shadow: ${({ theme }) => theme.shadows.lg};
+    transform: translateY(-4px);
+    box-shadow: ${({ theme }) => theme.shadows.glow};
   }
 `;
 

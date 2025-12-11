@@ -11,11 +11,28 @@ import { useAppSelector } from './store/hooks';
 
 const AppContainer = styled.div`
   min-height: 100vh;
-  background-color: ${({ theme }) => theme.colors.background};
+  background: ${({ theme }) => theme.gradients.background};
+  position: relative;
+  
+  &::before {
+    content: '';
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: 
+      radial-gradient(circle at 20% 50%, rgba(99, 102, 241, 0.1) 0%, transparent 50%),
+      radial-gradient(circle at 80% 80%, rgba(139, 92, 246, 0.1) 0%, transparent 50%);
+    pointer-events: none;
+    z-index: 0;
+  }
 `;
 
 const AppContent = styled.div`
   min-height: calc(100vh - 80px);
+  position: relative;
+  z-index: 1;
 `;
 
 const AppHeader = () => {
