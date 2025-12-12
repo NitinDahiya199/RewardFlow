@@ -19,6 +19,7 @@ import {
   FooterLinks,
   FooterBottomLink,
 } from '../components/common';
+import { useAppSelector } from '../store/hooks';
 
 const gradientAnimation = keyframes`
   0% {
@@ -501,6 +502,8 @@ const AuthorRole = styled.p`
 `;
 
 export const Landing = () => {
+  const isAuthenticated = useAppSelector((state) => state.auth.isAuthenticated);
+
   return (
     <LandingWrapper>
       {/* Full Screen Hero Section */}
@@ -512,12 +515,14 @@ export const Landing = () => {
             Built with cutting-edge technology including Web3, AI, and real-time collaboration.
           </HeroSubtitle>
           <CTAButtons>
-            <Button as={StyledLink} to="/signup" size="lg">
+            <Button as={StyledLink} to={isAuthenticated ? "/tasks" : "/signup"} size="lg">
               Get Started
             </Button>
-            <Button as={StyledLink} to="/login" variant="outline" size="lg">
-              Sign In
-            </Button>
+            {!isAuthenticated && (
+              <Button as={StyledLink} to="/login" variant="outline" size="lg">
+                Sign In
+              </Button>
+            )}
           </CTAButtons>
         </HeroSection>
       </HeroSectionWrapper>
