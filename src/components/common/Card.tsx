@@ -14,7 +14,18 @@ export const Card = styled.div`
   backdrop-filter: blur(10px);
   transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
-  overflow: hidden;
+  overflow: overlay;
+  scrollbar-width: thin;
+  scrollbar-color: ${({ theme }) => theme.colors.primary} ${({ theme }) => theme.colors.surface}; 
+  &::-webkit-scrollbar {
+    width: 8px;
+  }
+  &::-webkit-scrollbar-track {
+    background: ${({ theme }) => theme.colors.surface};
+  }
+  &::-webkit-scrollbar-thumb {
+    background-color: ${({ theme }) => theme.colors.primary};
+  }
 
   &::before {
     content: '';

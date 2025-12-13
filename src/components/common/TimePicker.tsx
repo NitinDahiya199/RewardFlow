@@ -12,6 +12,7 @@ const TimePickerDropdown = styled.div<{ $isOpen: boolean }>`
   left: 0;
   width: 100%;
   min-width: 280px;
+  max-width: 100%;
   z-index: 1000;
   background: linear-gradient(
     135deg,
@@ -25,6 +26,9 @@ const TimePickerDropdown = styled.div<{ $isOpen: boolean }>`
   display: ${({ $isOpen }) => ($isOpen ? 'block' : 'none')};
   animation: ${({ $isOpen }) => ($isOpen ? 'slideDown 0.2s ease-out' : 'none')};
   backdrop-filter: blur(10px);
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: visible;
 
   @keyframes slideDown {
     from {
@@ -83,6 +87,8 @@ const TimePickerBody = styled.div`
   gap: ${({ theme }) => theme.spacing.sm};
   max-height: 200px;
   overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 `;
 
 const TimeColumn = styled.div`
@@ -91,7 +97,10 @@ const TimeColumn = styled.div`
   flex-direction: column;
   align-items: center;
   overflow-y: auto;
+  overflow-x: hidden;
   scroll-behavior: smooth;
+  min-width: 0;
+  max-width: 100%;
   
   &::-webkit-scrollbar {
     width: 4px;
@@ -114,6 +123,7 @@ const TimeColumn = styled.div`
 
 const TimeOption = styled.button<{ $isSelected: boolean }>`
   width: 100%;
+  max-width: 100%;
   padding: ${({ theme }) => theme.spacing.sm};
   margin: ${({ theme }) => theme.spacing.xs} 0;
   background: ${({ $isSelected, theme }) => 
@@ -132,11 +142,14 @@ const TimeOption = styled.button<{ $isSelected: boolean }>`
   display: flex;
   align-items: center;
   justify-content: center;
+  box-sizing: border-box;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 
   &:hover:not(:disabled) {
     background: ${({ $isSelected, theme }) => 
       $isSelected ? theme.gradients.primary : theme.colors.surfaceHover};
-    border-color: ${({ theme }) => theme.colors.primary};
     transform: scale(1.05);
   }
 

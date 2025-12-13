@@ -512,7 +512,7 @@ export const Tasks = () => {
         const seconds = Math.floor((difference % (1000 * 60)) / 1000);
 
         if (days > 0) {
-          setTimeLeft(`${days}d ${hours}h ${minutes}m`);
+          setTimeLeft(`${days}d ${hours}h ${minutes}m ${seconds}s`);
         } else if (hours > 0) {
           setTimeLeft(`${hours}h ${minutes}m ${seconds}s`);
         } else if (minutes > 0) {
@@ -522,7 +522,10 @@ export const Tasks = () => {
         }
       };
 
+      // Update immediately
       updateCountdown();
+      
+      // Update every second to show live countdown
       const interval = setInterval(updateCountdown, 1000);
 
       return () => clearInterval(interval);
@@ -544,6 +547,7 @@ export const Tasks = () => {
           year: 'numeric',
           hour: 'numeric',
           minute: '2-digit',
+          second: '2-digit',
         })}
         {' - '}
         {timeLeft}
