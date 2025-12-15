@@ -119,7 +119,7 @@ export const Profile = () => {
                 value={formData.name}
                 onChange={handleChange}
                 disabled={!isEditing}
-                required
+                placeholder="Enter your name"
               />
             </FormGroup>
             <FormGroup>
@@ -131,7 +131,7 @@ export const Profile = () => {
                 value={formData.email}
                 onChange={handleChange}
                 disabled={!isEditing}
-                required
+                placeholder="Enter your name"
               />
             </FormGroup>
             <FormGroup>

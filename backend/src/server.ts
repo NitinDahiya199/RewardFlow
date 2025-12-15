@@ -4,6 +4,8 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 import prisma from './config/database';
+import { verifySignature, generateNonce } from './utils/web3';
+import { generateToken } from './utils/jwt';
 
 dotenv.config();
 
@@ -12,6 +14,10 @@ const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
+
+// In-memory storage for nonces (use Redis in production)
+const nonceStore: Map<string, { nonce: string; expiresAt: number }> = new Map();
+const NONCE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 
 app.get('/api/health', (req, res) => {
     res.json({message : 'Server is healthy' });
@@ -33,6 +39,12 @@ app.post('/api/auth/signup', async (req, res) => {
 
     if (password.length < 6) {
       return res.status(400).json({ error: 'Password must be at least 6 characters' });
+    }
+
+    // Validate email format
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return res.status(400).json({ error: 'Invalid email format' });
     }
 
     // Check if user already exists
@@ -96,6 +108,11 @@ app.post('/api/auth/login', async (req, res) => {
       return res.status(401).json({ error: 'Invalid email or password' });
     }
 
+    // Check if user has a password (Web3 users might not have passwords)
+    if (!user.password) {
+      return res.status(401).json({ error: 'This account uses wallet authentication. Please connect your wallet.' });
+    }
+
     // Verify password
     const isPasswordValid = await bcrypt.compare(password, user.password);
 
@@ -114,6 +131,150 @@ app.post('/api/auth/login', async (req, res) => {
     });
   } catch (error: any) {
     console.error('Login error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Get nonce for Web3 authentication
+app.post('/api/auth/web3-nonce', async (req, res) => {
+  try {
+    const { walletAddress } = req.body;
+
+    if (!walletAddress) {
+      return res.status(400).json({ error: 'Wallet address is required' });
+    }
+
+    // Validate address format
+    if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      return res.status(400).json({ error: 'Invalid wallet address format' });
+    }
+
+    const nonce = generateNonce();
+    const expiresAt = Date.now() + NONCE_EXPIRY;
+
+    // Store nonce
+    nonceStore.set(walletAddress.toLowerCase(), { nonce, expiresAt });
+
+    // Clean up expired nonces
+    for (const [addr, data] of nonceStore.entries()) {
+      if (data.expiresAt < Date.now()) {
+        nonceStore.delete(addr);
+      }
+    }
+
+    res.status(200).json({ nonce });
+  } catch (error: any) {
+    console.error('Nonce generation error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Web3 wallet authentication endpoint
+app.post('/api/auth/web3-verify', async (req, res) => {
+  try {
+    const { walletAddress, signature, nonce } = req.body;
+
+    // Validation
+    if (!walletAddress || !signature || !nonce) {
+      return res.status(400).json({ error: 'Wallet address, signature, and nonce are required' });
+    }
+
+    // Validate address format
+    if (!/^0x[a-fA-F0-9]{40}$/.test(walletAddress)) {
+      return res.status(400).json({ error: 'Invalid wallet address format' });
+    }
+
+    const normalizedAddress = walletAddress.toLowerCase();
+
+    // Check nonce validity
+    const storedNonceData = nonceStore.get(normalizedAddress);
+    if (!storedNonceData) {
+      return res.status(400).json({ error: 'Nonce not found or expired. Please request a new nonce.' });
+    }
+
+    if (storedNonceData.nonce !== nonce) {
+      return res.status(400).json({ error: 'Invalid nonce' });
+    }
+
+    if (storedNonceData.expiresAt < Date.now()) {
+      nonceStore.delete(normalizedAddress);
+      return res.status(400).json({ error: 'Nonce expired. Please request a new nonce.' });
+    }
+
+    // Create authentication message
+    const message = `Sign in to TaskManager\n\nNonce: ${nonce}`;
+
+    // Verify signature
+    const isValid = verifySignature(message, signature, walletAddress);
+    if (!isValid) {
+      return res.status(401).json({ error: 'Invalid signature' });
+    }
+
+    // Remove used nonce
+    nonceStore.delete(normalizedAddress);
+
+    // Check if user with this wallet address exists
+    let user = await prisma.user.findUnique({
+      where: { walletAddress: normalizedAddress },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        walletAddress: true,
+        createdAt: true,
+      },
+    });
+
+    if (!user) {
+      // Create new user with wallet address
+      user = await prisma.user.create({
+        data: {
+          name: `Wallet_${walletAddress.slice(0, 6)}...${walletAddress.slice(-4)}`,
+          walletAddress: normalizedAddress,
+          password: null,
+          bio: null,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          walletAddress: true,
+          createdAt: true,
+        },
+      });
+    }
+
+    // At this point, user is guaranteed to be non-null
+    // TypeScript doesn't always infer this correctly, so we assert
+    if (!user) {
+      return res.status(500).json({ error: 'Failed to create or retrieve user' });
+    }
+
+    // Generate JWT token
+    const token = generateToken({
+      userId: user.id,
+      email: user.email || undefined,
+      walletAddress: user.walletAddress || undefined,
+    });
+
+    res.status(200).json({
+      message: 'Authentication successful',
+      token,
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        walletAddress: user.walletAddress,
+      },
+    });
+  } catch (error: any) {
+    console.error('Web3 verify error:', error);
+    
+    // Handle unique constraint violation (wallet already exists)
+    if (error.code === 'P2002') {
+      return res.status(400).json({ error: 'Wallet address is already linked to another account' });
+    }
+
     res.status(500).json({ error: 'Internal server error' });
   }
 });

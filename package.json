@@ -4,10 +4,11 @@
   "description": "Redux practice project with authentication and task management",
   "private": true,
   "dependencies": {
+    "@reduxjs/toolkit": "^2.0.1",
+    "ethers": "^6.16.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-redux": "^9.0.4",
-    "@reduxjs/toolkit": "^2.0.1",
     "react-router-dom": "^6.20.1",
     "styled-components": "^6.1.1"
   },
@@ -25,4 +26,3 @@
     "preview": "vite preview"
   }
 }
-

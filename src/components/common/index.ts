@@ -40,4 +40,7 @@ export {
   BugIcon,
 } from './Icons';
 export { ToastProvider, useToast } from './Toast';
+export { ConnectWallet } from './ConnectWallet';
+export { WalletSelectModal } from './WalletSelectModal';
+export { MetaMaskIcon, CoinbaseIcon, WalletConnectIcon } from './WalletIcons';
 

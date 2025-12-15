@@ -611,7 +611,6 @@ export const Tasks = () => {
                   onChange={handleChange}
                   onKeyDown={handleKeyDown}
                   placeholder="Enter task title"
-                  required
                 />
               </FormGroup>
               <FormGroup>

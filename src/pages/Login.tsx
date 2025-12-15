@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import styled from 'styled-components';
-import { Button, Input, Card, CardHeader, CardTitle, CardBody, FormGroup, Label, Container, PageContainer } from '../components/common';
+import { Button, Input, Card, CardHeader, CardTitle, CardBody, FormGroup, Label, Container, PageContainer, ConnectWallet } from '../components/common';
 import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { loginUser } from '../store/slices/authSlice';
 import { useToast } from '../components/common/Toast';
@@ -21,6 +21,27 @@ const LoginCard = styled(Card)`
 const Form = styled.form`
   display: flex;
   flex-direction: column;
+`;
+
+const Divider = styled.div`
+  display: flex;
+  align-items: center;
+  margin: ${({ theme }) => theme.spacing.lg} 0;
+  text-align: center;
+  
+  &::before,
+  &::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: ${({ theme }) => theme.colors.border};
+  }
+  
+  span {
+    padding: 0 ${({ theme }) => theme.spacing.md};
+    color: ${({ theme }) => theme.colors.textSecondary};
+    font-size: ${({ theme }) => theme.fontSize.sm};
+  }
 `;
 
 const LinkText = styled.p`
@@ -95,7 +116,6 @@ export const Login = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Enter your email"
-                required
               />
             </FormGroup>
             <FormGroup>
@@ -107,7 +127,6 @@ export const Login = () => {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Enter your password"
-                required
               />
             </FormGroup>
             {error && (
@@ -120,6 +139,16 @@ export const Login = () => {
             <Button type="submit" fullWidth disabled={isLoading}>
               {isLoading ? 'Logging in...' : 'Login'}
             </Button>
+            <Divider>
+              <span>or</span>
+            </Divider>
+            <ConnectWallet
+              variant="outline"
+              fullWidth
+              onSuccess={() => {
+                navigate(from, { replace: true });
+              }}
+            />
             <LinkText>
               Don't have an account? <Link to="/signup">Sign up</Link>
             </LinkText>

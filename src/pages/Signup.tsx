@@ -111,7 +111,6 @@ export const Signup = () => {
                 value={formData.name}
                 onChange={handleChange}
                 placeholder="Enter your name"
-                required
               />
             </FormGroup>
             <FormGroup>
@@ -123,7 +122,6 @@ export const Signup = () => {
                 value={formData.email}
                 onChange={handleChange}
                 placeholder="Enter your email"
-                required
               />
             </FormGroup>
             <FormGroup>
@@ -135,7 +133,6 @@ export const Signup = () => {
                 value={formData.password}
                 onChange={handleChange}
                 placeholder="Enter your password"
-                required
               />
             </FormGroup>
             <FormGroup>
@@ -147,7 +144,6 @@ export const Signup = () => {
                 value={formData.confirmPassword}
                 onChange={handleChange}
                 placeholder="Confirm your password"
-                required
               />
             </FormGroup>
             {(passwordError || error) && (
