@@ -1,6 +1,7 @@
 // src/components/common/Toast.tsx
 import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
 import styled, { keyframes } from 'styled-components';
+import { ConfettiIcon, TrophyIcon, StarIcon, PartyIcon } from './Icons';
 
 export type ToastType = 'success' | 'error' | 'info' | 'warning';
 
@@ -239,7 +240,26 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({ children }) =
           >
             <ToastMessage>
               <ToastIcon $type={toast.type}>{getIcon(toast.type)}</ToastIcon>
-              {toast.message}
+              {toast.message.includes('All tasks completed') ? (
+                <>
+                  <CelebrationIcons>
+                    <ConfettiIcon size={20} color="#FFD700" />
+                    <TrophyIcon size={20} color="#FFD700" />
+                  </CelebrationIcons>
+                  {toast.message}
+                  <CelebrationIcons>
+                    <StarIcon size={20} color="#FFD700" />
+                    <PartyIcon size={20} color="#FF6B6B" />
+                  </CelebrationIcons>
+                </>
+              ) : toast.message.includes('badge minted') ? (
+                <>
+                  {toast.message}
+                  <StarIcon size={18} color="#FFD700" />
+                </>
+              ) : (
+                toast.message
+              )}
             </ToastMessage>
           </ToastItem>
         ))}

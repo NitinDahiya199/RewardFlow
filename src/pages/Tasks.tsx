@@ -9,7 +9,6 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchTasks, createTask, updateTask, deleteTask, toggleTaskComplete, Task } from '../store/slices/taskSlice';
 import { contractService } from '../services/contractService';
 import { useToast } from '../components/common/Toast';
-import { ConfettiIcon, TrophyIcon, StarIcon, PartyIcon } from '../components/common';
 
 const TasksContainer = styled(PageContainer)`
   max-width: 900px;
