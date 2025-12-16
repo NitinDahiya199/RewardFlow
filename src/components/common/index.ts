@@ -38,6 +38,10 @@ export {
   BookIcon,
   EmailIcon,
   BugIcon,
+  ConfettiIcon,
+  TrophyIcon,
+  StarIcon,
+  PartyIcon,
 } from './Icons';
 export { ToastProvider, useToast } from './Toast';
 export { ConnectWallet } from './ConnectWallet';

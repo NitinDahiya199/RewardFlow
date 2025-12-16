@@ -21,6 +21,7 @@ export interface Task {
   title: string;
   description: string;
   completed: boolean;
+  completedAt?: string | null;
   createdAt: string;
   userId: string;
   dueDate?: string | null;
@@ -34,6 +35,7 @@ export interface Task {
   rewardAmount?: string | null;
   rewardToken?: string | null;
   transactionHash?: string | null;
+  badgeTokenId?: string | null;
 }
 
 interface TaskState {
@@ -174,25 +176,32 @@ export const deleteTask = createAsyncThunk(
 
 export const toggleTaskComplete = createAsyncThunk(
   'tasks/toggleTaskComplete',
-  async (taskId: string, { rejectWithValue }) => {
+  async (taskData: { taskId: string; userId: string }, { rejectWithValue }) => {
     try {
-      const response = await fetch(`http://localhost:5000/api/tasks/${taskId}/toggle`, {
+      const response = await fetch(`http://localhost:5000/api/tasks/${taskData.taskId}/complete`, {
         method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: taskData.userId }),
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to toggle task');
+        throw new Error(errorData.error || 'Failed to complete task');
       }
 
-      const task = await response.json();
+      const result = await response.json();
       return {
-        ...task,
-        createdAt: formatDate(task.createdAt),
-        dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
+        task: {
+          ...result,
+          createdAt: formatDate(result.createdAt),
+          dueDate: result.dueDate ? new Date(result.dueDate).toISOString() : null,
+        },
+        stats: result.stats,
+        blockchainTxHash: result.blockchainTxHash,
+        badgeTokenId: result.badgeTokenId,
       };
     } catch (error: any) {
-      return rejectWithValue(error.message || 'Failed to toggle task');
+      return rejectWithValue(error.message || 'Failed to complete task');
     }
   }
 );
@@ -319,20 +328,47 @@ const taskSlice = createSlice({
         state.error = action.payload as string;
       })
       // Toggle task complete
-      .addCase(toggleTaskComplete.pending, (state) => {
+      .addCase(toggleTaskComplete.pending, (state, action) => {
         state.isLoading = true;
         state.error = null;
+        // Optimistic Update: Mark task as completed
+        if (action.meta.arg) {
+          const index = state.tasks.findIndex(task => task.id === action.meta.arg.taskId);
+          if (index !== -1) {
+            state.tasks[index] = {
+              ...state.tasks[index],
+              completed: !state.tasks[index].completed,
+              completedAt: state.tasks[index].completed ? null : new Date().toISOString(),
+            };
+          }
+        }
       })
       .addCase(toggleTaskComplete.fulfilled, (state, action) => {
         state.isLoading = false;
-        const index = state.tasks.findIndex(task => task.id === action.payload.id);
+        // Update Redux: updateTask(completedTask)
+        const index = state.tasks.findIndex(task => task.id === action.payload.task.id);
         if (index !== -1) {
-          state.tasks[index] = action.payload;
+          state.tasks[index] = {
+            ...action.payload.task,
+            createdAt: formatDate(action.payload.task.createdAt),
+            dueDate: action.payload.task.dueDate ? new Date(action.payload.task.dueDate).toISOString() : null,
+          };
         }
         state.error = null;
       })
       .addCase(toggleTaskComplete.rejected, (state, action) => {
         state.isLoading = false;
+        // Revert optimistic update
+        if (action.meta.arg) {
+          const index = state.tasks.findIndex(task => task.id === action.meta.arg.taskId);
+          if (index !== -1) {
+            state.tasks[index] = {
+              ...state.tasks[index],
+              completed: !state.tasks[index].completed,
+              completedAt: state.tasks[index].completed ? new Date().toISOString() : null,
+            };
+          }
+        }
         state.error = action.payload as string;
       });
   },

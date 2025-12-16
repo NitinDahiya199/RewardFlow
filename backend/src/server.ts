@@ -5,6 +5,7 @@ import dotenv from 'dotenv';
 import bcrypt from 'bcrypt';
 import speakeasy from 'speakeasy';
 import * as QRCode from 'qrcode';
+import { ethers } from 'ethers';
 import prisma from './config/database';
 import { verifySignature, generateNonce } from './utils/web3';
 import { generateToken } from './utils/jwt';
@@ -721,7 +722,159 @@ app.put('/api/tasks/:id', async (req, res) => {
   }
 });
 
-// PATCH /api/tasks/:id/toggle - Toggle task completion
+// PATCH /api/tasks/:id/complete - Complete a task (with Web3 rewards)
+app.patch('/api/tasks/:id/complete', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { userId } = req.body; // User completing the task
+
+    // Check if task exists
+    const existingTask = await prisma.task.findUnique({
+      where: { id },
+      include: { user: true },
+    });
+
+    if (!existingTask) {
+      return res.status(404).json({ error: 'Task not found' });
+    }
+
+    // CHECK: Task already completed?
+    if (existingTask.completed) {
+      // Uncomplete task - different flow
+      const task = await prisma.task.update({
+        where: { id },
+        data: {
+          completed: false,
+          completedAt: null,
+        },
+      });
+      return res.status(200).json(task);
+    }
+
+    // Record completion timestamp
+    const completedAt = new Date();
+
+    // If Web3 reward: Release escrow payment
+    let completionTxHash: string | null = null;
+    let badgeTokenId: string | null = null;
+
+    if (existingTask.hasWeb3Reward && existingTask.blockchainTaskId) {
+      try {
+        // Connect to blockchain
+        const rpcUrl = process.env.SEPOLIA_RPC_URL;
+        const privateKey = process.env.PRIVATE_KEY;
+        
+        if (!rpcUrl || !privateKey) {
+          console.warn('Web3 RPC URL or private key not configured. Skipping blockchain completion.');
+        } else {
+          const provider = new ethers.JsonRpcProvider(rpcUrl);
+          const wallet = new ethers.Wallet(privateKey, provider);
+          
+          const taskManagerAddress = process.env.TASK_MANAGER_CONTRACT_ADDRESS;
+          const taskBadgeAddress = process.env.TASK_BADGE_CONTRACT_ADDRESS;
+          
+          if (taskManagerAddress) {
+            // Load TaskManager ABI (minimal for completeTask)
+            const taskManagerABI = [
+              "function completeTask(uint256 taskId) external nonReentrant",
+              "event TaskCompleted(uint256 indexed taskId, address indexed assignee, uint256 rewardAmount)"
+            ];
+            const taskManager = new ethers.Contract(taskManagerAddress, taskManagerABI, wallet);
+            
+            // Complete task on blockchain (releases escrow payment)
+            const taskId = BigInt(existingTask.blockchainTaskId);
+            const tx = await taskManager.completeTask(taskId);
+            completionTxHash = tx.hash;
+            await tx.wait();
+            
+            console.log(`Task ${id} completed on blockchain. Transaction: ${completionTxHash}`);
+            
+            // If token reward: Mint tokens to user (handled by contract)
+            // If NFT badge: Mint achievement NFT
+            if (taskBadgeAddress && existingTask.assignee) {
+              try {
+                const taskBadgeABI = [
+                  "function mintBadge(address to, uint256 taskId, string memory badgeURI) external nonReentrant returns (uint256)",
+                  "event BadgeMinted(uint256 indexed tokenId, uint256 indexed taskId, address indexed recipient)"
+                ];
+                const taskBadge = new ethers.Contract(taskBadgeAddress, taskBadgeABI, wallet);
+                
+                // Create badge URI (can be enhanced with IPFS)
+                const badgeURI = `https://rewardflow.app/badges/${existingTask.id}`;
+                const badgeTx = await taskBadge.mintBadge(existingTask.assignee, taskId, badgeURI);
+                const badgeReceipt = await badgeTx.wait();
+                
+                // Extract badge token ID from event
+                const badgeMintedEvent = badgeReceipt.logs.find((log: any) => {
+                  try {
+                    const iface = new ethers.Interface(taskBadgeABI);
+                    const parsed = iface.parseLog(log);
+                    return parsed?.name === "BadgeMinted";
+                  } catch {
+                    return false;
+                  }
+                });
+                
+                if (badgeMintedEvent) {
+                  const iface = new ethers.Interface(taskBadgeABI);
+                  const parsed = iface.parseLog(badgeMintedEvent);
+                  badgeTokenId = parsed?.args[0].toString();
+                  console.log(`Badge minted for task ${id}. Token ID: ${badgeTokenId}`);
+                }
+              } catch (badgeError: any) {
+                console.error('Failed to mint badge:', badgeError);
+                // Continue without badge - task completion still succeeds
+              }
+            }
+          }
+        }
+      } catch (blockchainError: any) {
+        console.error('Blockchain completion error:', blockchainError);
+        // Continue with database update even if blockchain fails
+        // In production, you might want to handle this differently
+      }
+    }
+
+    // Update task status
+    const task = await prisma.task.update({
+      where: { id },
+      data: {
+        completed: true,
+        completedAt: completedAt,
+        ...(badgeTokenId && { badgeTokenId }),
+      },
+    });
+
+    // Calculate completion stats
+    const totalTasks = await prisma.task.count({
+      where: { userId: existingTask.userId },
+    });
+    const completedTasks = await prisma.task.count({
+      where: { 
+        userId: existingTask.userId,
+        completed: true,
+      },
+    });
+    const completionRate = totalTasks > 0 ? (completedTasks / totalTasks) * 100 : 0;
+
+    res.status(200).json({
+      ...task,
+      stats: {
+        totalTasks,
+        completedTasks,
+        completionRate: Math.round(completionRate * 100) / 100,
+        allTasksCompleted: completedTasks === totalTasks && totalTasks > 0,
+      },
+      blockchainTxHash: completionTxHash,
+      badgeTokenId,
+    });
+  } catch (error: any) {
+    console.error('Complete task error:', error);
+    res.status(500).json({ error: error.message || 'Internal server error' });
+  }
+});
+
+// PATCH /api/tasks/:id/toggle - Toggle task completion (backward compatibility)
 app.patch('/api/tasks/:id/toggle', async (req, res) => {
   try {
     const { id } = req.params;
@@ -735,11 +888,19 @@ app.patch('/api/tasks/:id/toggle', async (req, res) => {
       return res.status(404).json({ error: 'Task not found' });
     }
 
-    // Toggle completion
+    // If completing, use the complete endpoint logic
+    if (!existingTask.completed) {
+      // Forward to complete endpoint
+      req.body.userId = req.body.userId || existingTask.userId;
+      return app._router.handle({ ...req, url: `/api/tasks/${id}/complete`, method: 'PATCH' }, res);
+    }
+
+    // Toggle completion (uncomplete)
     const task = await prisma.task.update({
       where: { id },
       data: {
-        completed: !existingTask.completed,
+        completed: false,
+        completedAt: null,
       },
     });
 

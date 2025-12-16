@@ -347,3 +347,155 @@ export const BugIcon: React.FC<IconProps> = ({ size = 24, color = 'currentColor'
   </IconWrapper>
 );
 
+// Celebration Icons
+
+// Confetti Icon
+export const ConfettiIcon: React.FC<IconProps> = ({ size = 24, color = '#FFD700', className }) => (
+  <IconWrapper
+    size={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <circle cx="6" cy="8" r="2" fill="#FF6B6B" />
+    <circle cx="18" cy="6" r="1.5" fill="#4ECDC4" />
+    <circle cx="12" cy="4" r="1.5" fill="#FFE66D" />
+    <circle cx="20" cy="12" r="1.5" fill="#FF6B6B" />
+    <circle cx="4" cy="14" r="1.5" fill="#95E1D3" />
+    <path
+      d="M8 12L10 14L12 10L14 16L16 8"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M6 18L8 20L10 16L12 22L14 14"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </IconWrapper>
+);
+
+// Trophy Icon
+export const TrophyIcon: React.FC<IconProps> = ({ size = 24, color = '#FFD700', className }) => (
+  <IconWrapper
+    size={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <path
+      d="M6 9C6 7.34315 7.34315 6 9 6H15C16.6569 6 18 7.34315 18 9V10C18 12.7614 15.7614 15 13 15H11C8.23858 15 6 12.7614 6 10V9Z"
+      fill={color}
+      opacity="0.2"
+    />
+    <path
+      d="M6 9C6 7.34315 7.34315 6 9 6H15C16.6569 6 18 7.34315 18 9V10C18 12.7614 15.7614 15 13 15H11C8.23858 15 6 12.7614 6 10V9Z"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M12 15V19"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M8 19H16"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M10 19V21C10 21.5523 10.4477 22 11 22H13C13.5523 22 14 21.5523 14 21V19"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+    <path
+      d="M9 6V4C9 3.44772 9.44772 3 10 3H14C14.5523 3 15 3.44772 15 4V6"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </IconWrapper>
+);
+
+// Star Icon (for achievements)
+export const StarIcon: React.FC<IconProps> = ({ size = 24, color = '#FFD700', className }) => (
+  <IconWrapper
+    size={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <path
+      d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+      fill={color}
+      opacity="0.3"
+    />
+    <path
+      d="M12 2L15.09 8.26L22 9.27L17 14.14L18.18 21.02L12 17.77L5.82 21.02L7 14.14L2 9.27L8.91 8.26L12 2Z"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </IconWrapper>
+);
+
+// Party Popper Icon
+export const PartyIcon: React.FC<IconProps> = ({ size = 24, color = '#FF6B6B', className }) => (
+  <IconWrapper
+    size={size}
+    viewBox="0 0 24 24"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+    className={className}
+  >
+    <rect x="8" y="4" width="8" height="12" rx="1" fill={color} opacity="0.2" />
+    <rect x="8" y="4" width="8" height="12" rx="1" stroke={color} strokeWidth="2" />
+    <path
+      d="M10 8H14"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <path
+      d="M12 4V2"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <path
+      d="M12 16V20"
+      stroke={color}
+      strokeWidth="2"
+      strokeLinecap="round"
+    />
+    <circle cx="4" cy="8" r="1.5" fill="#FFE66D" />
+    <circle cx="20" cy="10" r="1.5" fill="#4ECDC4" />
+    <circle cx="6" cy="18" r="1.5" fill="#FF6B6B" />
+    <circle cx="18" cy="20" r="1.5" fill="#95E1D3" />
+    <path
+      d="M5 12L7 14L9 10L11 16L13 8"
+      stroke="#FFD700"
+      strokeWidth="1.5"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </IconWrapper>
+);
+

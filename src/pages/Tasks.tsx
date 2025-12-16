@@ -9,6 +9,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchTasks, createTask, updateTask, deleteTask, toggleTaskComplete, Task } from '../store/slices/taskSlice';
 import { contractService } from '../services/contractService';
 import { useToast } from '../components/common/Toast';
+import { ConfettiIcon, TrophyIcon, StarIcon, PartyIcon } from '../components/common';
 
 const TasksContainer = styled(PageContainer)`
   max-width: 900px;
@@ -742,12 +743,56 @@ export const Tasks = () => {
     setDeleteConfirm({ show: false, taskId: null });
   };
 
-  const handleToggleComplete = async (id: string) => {
+  const handleToggleComplete = async (task: Task) => {
+    if (!user?.id) {
+      showToast('You must be logged in to complete tasks', 'error');
+      return;
+    }
+
+    // CHECK: Task already completed?
+    if (task.completed) {
+      // Uncomplete task - different flow
+      try {
+        await dispatch(toggleTaskComplete({ taskId: task.id, userId: user.id })).unwrap();
+        showToast('Task uncompleted', 'success');
+      } catch (error: any) {
+        showToast(error.message || 'Failed to uncomplete task', 'error');
+      }
+      return;
+    }
+
     try {
-      await dispatch(toggleTaskComplete(id)).unwrap();
-    } catch (error) {
-      // Error is handled by Redux state
-      console.error('Failed to toggle task:', error);
+      // Redux Action: toggleTaskComplete(taskId) dispatched
+      // Optimistic Update: Mark task as completed (handled by Redux)
+      const result = await dispatch(toggleTaskComplete({ taskId: task.id, userId: user.id })).unwrap();
+      
+      // API Response SUCCESS
+      // If reward: Show reward notification
+      if (task.hasWeb3Reward && result.blockchainTxHash) {
+        if (task.rewardToken) {
+          showToast(`Task completed! Token reward released. Transaction: ${result.blockchainTxHash.substring(0, 10)}...`, 'success');
+        } else {
+          showToast(`Task completed! ETH reward released. Transaction: ${result.blockchainTxHash.substring(0, 10)}...`, 'success');
+        }
+      } else {
+        showToast('Task completed successfully!', 'success');
+      }
+
+      // If NFT: Show NFT minted notification
+      if (result.badgeTokenId) {
+        showToast(`Achievement badge minted! Token ID: ${result.badgeTokenId}`, 'success');
+      }
+
+      // CHECK: All tasks completed?
+      if (result.stats?.allTasksCompleted) {
+        // Show celebration animation
+        setTimeout(() => {
+          showToast('Congratulations! All tasks completed!', 'success');
+        }, 500);
+      }
+    } catch (error: any) {
+      // ERROR: Revert optimistic update (handled by Redux), Show error message, Uncheck checkbox (handled by revert)
+      showToast(error.message || 'Failed to complete task', 'error');
     }
   };
 
@@ -1081,7 +1126,7 @@ export const Tasks = () => {
                   <Checkbox
                     type="checkbox"
                     checked={task.completed}
-                    onChange={() => handleToggleComplete(task.id)}
+                    onChange={() => handleToggleComplete(task)}
                   />
                   <CheckboxLabel completed={task.completed}>
                     {task.completed ? 'Completed' : 'Mark as complete'}

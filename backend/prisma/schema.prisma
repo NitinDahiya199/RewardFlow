@@ -26,6 +26,7 @@ model Task {
   title       String
   description String?
   completed   Boolean   @default(false)
+  completedAt DateTime? // Timestamp when task was completed
   userId      String
   user        User      @relation(fields: [userId], references: [id])
   createdAt   DateTime  @default(now())
@@ -40,4 +41,5 @@ model Task {
   rewardAmount    String? // Reward amount in wei or token units
   rewardToken     String? // Token address (null for ETH)
   transactionHash String? // Transaction hash when created on blockchain
+  badgeTokenId    String? // NFT badge token ID if minted
 }

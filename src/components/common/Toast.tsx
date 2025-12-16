@@ -122,7 +122,7 @@ const ToastItem = styled.div<{ $type: ToastType; $isExiting: boolean }>`
   }}
 `;
 
-const ToastMessage = styled.p`
+const ToastMessage = styled.div`
   color: ${({ theme }) => theme.colors.text};
   font-size: ${({ theme }) => theme.fontSize.md};
   font-weight: ${({ theme }) => theme.fontWeight.medium};
@@ -131,6 +131,27 @@ const ToastMessage = styled.p`
   display: flex;
   align-items: center;
   gap: ${({ theme }) => theme.spacing.sm};
+  flex-wrap: wrap;
+`;
+
+const CelebrationIcons = styled.div`
+  display: inline-flex;
+  align-items: center;
+  gap: ${({ theme }) => theme.spacing.xs};
+  margin: 0 ${({ theme }) => theme.spacing.xs};
+  
+  svg {
+    animation: bounce 0.6s ease-in-out;
+  }
+  
+  @keyframes bounce {
+    0%, 100% {
+      transform: translateY(0);
+    }
+    50% {
+      transform: translateY(-8px);
+    }
+  }
 `;
 
 const ToastIcon = styled.span<{ $type: ToastType }>`
