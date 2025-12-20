@@ -31,10 +31,6 @@ const PageTitle = styled.h1`
   font-weight: ${({ theme }) => theme.fontWeight.bold};
 `;
 
-const TaskFormCard = styled(Card)`
-  margin-bottom: ${({ theme }) => theme.spacing.xl};
-`;
-
 const Form = styled.form`
   display: flex;
   flex-direction: column;
@@ -86,7 +82,7 @@ const TaskMeta = styled.div`
   justify-content: space-between;
   align-items: center;
   padding-top: ${({ theme }) => theme.spacing.md};
-  border-top: 1px solid ${({ theme }) => theme.colors.borderLight};
+  // border-top: 1px solid ${({ theme }) => theme.colors.borderLight};
 `;
 
 const TaskDate = styled.span`
@@ -182,7 +178,7 @@ const DueDateLabel = styled.span`
 // Modal Styles
 const ModalOverlay = styled.div`
   position: fixed;
-  top: 0;
+  top: 10vh;
   left: 0;
   right: 0;
   bottom: 0;
@@ -206,7 +202,7 @@ const ModalOverlay = styled.div`
 
 const ModalContent = styled(Card)`
   max-width: 400px;
-  width: 90%;
+  width: 100%;
   animation: slideUp 0.3s cubic-bezier(0.4, 0, 0.2, 1);
   position: relative;
   
@@ -240,6 +236,47 @@ const ModalActions = styled.div`
   display: flex;
   gap: ${({ theme }) => theme.spacing.md};
   justify-content: flex-end;
+`;
+
+const ModalHeader = styled.div`
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+`;
+
+const CloseButton = styled.button`
+  background: none;
+  border: none;
+  color: ${({ theme }) => theme.colors.textSecondary};
+  cursor: pointer;
+  padding: ${({ theme }) => theme.spacing.xs};
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: ${({ theme }) => theme.borderRadius.md};
+  transition: all 0.2s ease;
+  width: 32px;
+  height: 32px;
+
+  &:hover {
+    background: ${({ theme }) => theme.colors.surfaceLight || '#f5f5f5'};
+    color: ${({ theme }) => theme.colors.text};
+  }
+
+  &:active {
+    transform: scale(0.95);
+  }
+`;
+
+const CloseIcon = styled.svg`
+  width: 20px;
+  height: 20px;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  fill: none;
 `;
 
 // Date/Time Input Container with Icons
@@ -435,18 +472,20 @@ export const Tasks = () => {
     return () => clearTimeout(timeoutId);
   }, [searchInput, dispatch, user?.id]);
 
-  // Handle Escape key to close modal
+  // Handle Escape key to close modals
   useEffect(() => {
-    if (!deleteConfirm.show) return;
-    
     const handleEscape = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
-        setDeleteConfirm({ show: false, taskId: null });
+        if (deleteConfirm.show) {
+          setDeleteConfirm({ show: false, taskId: null });
+        } else if (showForm) {
+          handleCancel();
+        }
       }
     };
     window.addEventListener('keydown', handleEscape);
     return () => window.removeEventListener('keydown', handleEscape);
-  }, [deleteConfirm.show]);
+  }, [deleteConfirm.show, showForm]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     setFormData({
@@ -1046,13 +1085,22 @@ export const Tasks = () => {
         <LoadingMessage>Loading tasks...</LoadingMessage>
       )}
 
-      {showForm && (
-        <TaskFormCard>
-          <CardHeader>
-            <CardTitle>{editingTask ? 'Edit Task' : 'Create New Task'}</CardTitle>
-          </CardHeader>
-          <CardBody>
-            <Form onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
+        {showForm && (
+          <ModalOverlay onClick={handleCancel}>
+            <ModalContent onClick={(e) => e.stopPropagation()} style={{ maxWidth: '600px', width: '90%', maxHeight: '80vh', overflowY: 'auto' }}>
+              <CardHeader>
+                <ModalHeader>
+                  <CardTitle>{editingTask ? 'Edit Task' : 'Create New Task'}</CardTitle>
+                  <CloseButton onClick={handleCancel} type="button" aria-label="Close">
+                    <CloseIcon viewBox="0 0 24 24">
+                      <line x1="18" y1="6" x2="6" y2="18" />
+                      <line x1="6" y1="6" x2="18" y2="18" />
+                    </CloseIcon>
+                  </CloseButton>
+                </ModalHeader>
+              </CardHeader>
+            <CardBody>
+              <Form onSubmit={handleSubmit} onKeyDown={handleKeyDown}>
               <FormGroup>
                 <Label htmlFor="title">Title</Label>
                 <Input
@@ -1231,12 +1279,13 @@ export const Tasks = () => {
                       ? 'Update Task' 
                       : 'Create Task'}
               </Button>
-              <p style={{ fontSize: '0.875rem', color: '#94A3B8', marginTop: '0.5rem', textAlign: 'center' }}>
-                Press Ctrl+Enter (Cmd+Enter on Mac) to submit
-              </p>
-            </Form>
-          </CardBody>
-        </TaskFormCard>
+                <p style={{ fontSize: '0.875rem', color: '#94A3B8', marginTop: '0.5rem', textAlign: 'center' }}>
+                  Press Ctrl+Enter (Cmd+Enter on Mac) to submit
+                </p>
+              </Form>
+            </CardBody>
+          </ModalContent>
+        </ModalOverlay>
       )}
 
       {!isLoading && (
