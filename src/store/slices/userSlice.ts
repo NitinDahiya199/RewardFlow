@@ -60,7 +60,17 @@ export const fetchUserProfile = createAsyncThunk(
 
 export const updateUserProfile = createAsyncThunk(
   'user/updateProfile',
-  async (profileData: { userId: string; name?: string; email?: string; bio?: string }, { rejectWithValue }) => {
+  async (profileData: { 
+    userId: string; 
+    name?: string; 
+    email?: string; 
+    bio?: string;
+    phone?: string;
+    location?: string;
+    website?: string;
+    role?: string;
+    company?: string;
+  }, { rejectWithValue }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await fetch(`http://localhost:5000/api/users/${profileData.userId}/profile`, {
@@ -73,6 +83,11 @@ export const updateUserProfile = createAsyncThunk(
           name: profileData.name,
           email: profileData.email,
           bio: profileData.bio,
+          phone: profileData.phone,
+          location: profileData.location,
+          website: profileData.website,
+          role: profileData.role,
+          company: profileData.company,
         }),
       });
 
