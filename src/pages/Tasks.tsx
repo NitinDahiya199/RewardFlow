@@ -9,6 +9,7 @@ import { useAppDispatch, useAppSelector } from '../store/hooks';
 import { fetchTasks, createTask, updateTask, deleteTask, toggleTaskComplete, searchTasks, Task } from '../store/slices/taskSlice';
 import { contractService } from '../services/contractService';
 import { useToast } from '../components/common/Toast';
+import { realtimeService } from '../services/realtimeService';
 
 const TasksContainer = styled(PageContainer)`
   max-width: 900px;
@@ -399,7 +400,7 @@ const SearchLoading = styled.div`
 
 export const Tasks = () => {
   const dispatch = useAppDispatch();
-  const { tasks, isLoading, error, searchResults, searchQuery, isSearching, searchError } = useAppSelector((state) => state.tasks);
+  const { tasks, isLoading, error, searchResults, isSearching, searchError } = useAppSelector((state) => state.tasks);
   const { user } = useAppSelector((state) => state.auth);
   
   const [showForm, setShowForm] = useState(false);
@@ -450,6 +451,24 @@ export const Tasks = () => {
       dispatch(fetchTasks(user.id));
     }
   }, [dispatch, user?.id]);
+
+  // Join task rooms for all user's tasks when component mounts
+  useEffect(() => {
+    if (tasks.length > 0) {
+      tasks.forEach(task => {
+        realtimeService.joinTaskRoom(task.id);
+      });
+    }
+
+    // Cleanup: Leave all task rooms when component unmounts
+    return () => {
+      if (tasks.length > 0) {
+        tasks.forEach(task => {
+          realtimeService.leaveTaskRoom(task.id);
+        });
+      }
+    };
+  }, [tasks]);
 
   // Prevent body scrolling when modal is open
   useEffect(() => {
@@ -688,28 +707,29 @@ export const Tasks = () => {
                 await contractService.connect();
               }
 
-            // Get assignee address - use current user's address if not provided
-            let assigneeAddress = formData.assignee?.trim();
-            if (!assigneeAddress) {
-              assigneeAddress = await contractService.getCurrentAddress();
-            }
+            // Get assignee address - empty means open task (anyone can claim)
+            let assigneeAddress = formData.assignee?.trim() || '';
             
-            // Validate assignee address format (case-insensitive)
-            if (!/^0x[a-fA-F0-9]{40}$/i.test(assigneeAddress)) {
-              showToast('Invalid assignee wallet address format. Must be a valid Ethereum address (0x followed by 40 hex characters)', 'error');
-              setIsCreatingBlockchain(false);
-              return;
-            }
+            // If assignee is provided, validate it's a valid address
+            if (assigneeAddress) {
+              // Validate assignee address format (case-insensitive)
+              if (!/^0x[a-fA-F0-9]{40}$/i.test(assigneeAddress)) {
+                showToast('Invalid assignee wallet address format. Must be a valid Ethereum address (0x followed by 40 hex characters). Leave empty for open tasks.', 'error');
+                setIsCreatingBlockchain(false);
+                return;
+              }
 
-            // Normalize address to checksum format for comparison
-            const normalizedAssignee = assigneeAddress.toLowerCase();
-            
-            // Validate assignee is not zero address
-            if (normalizedAssignee === '0x0000000000000000000000000000000000000000') {
-              showToast('Assignee cannot be the zero address', 'error');
-              setIsCreatingBlockchain(false);
-              return;
+              // Normalize address to checksum format
+              assigneeAddress = ethers.getAddress(assigneeAddress);
+              
+              // Validate assignee is not zero address
+              if (assigneeAddress === ethers.ZeroAddress) {
+                showToast('Assignee cannot be the zero address. Leave empty for open tasks.', 'error');
+                setIsCreatingBlockchain(false);
+                return;
+              }
             }
+            // If assignee is empty, task will be open for claiming (assignee = address(0))
             
             // Use checksum address for the contract call (ethers will handle this)
             // Keep the original format, ethers.getAddress will normalize it
@@ -727,14 +747,22 @@ export const Tasks = () => {
               // Create task on blockchain
               if (formData.rewardToken) {
                 // Token reward
-                const result = await contractService.createTaskWithToken(
-                  formData.title,
-                  formData.description,
-                  assigneeAddress,
-                  formData.rewardAmount,
-                  formData.rewardToken,
-                  dueDateUnix
-                );
+                const result = assigneeAddress
+                  ? await contractService.createAssignedTaskWithToken(
+                      formData.title,
+                      formData.description,
+                      assigneeAddress,
+                      formData.rewardAmount,
+                      formData.rewardToken,
+                      dueDateUnix
+                    )
+                  : await contractService.createOpenTaskWithToken(
+                      formData.title,
+                      formData.description,
+                      formData.rewardAmount,
+                      formData.rewardToken,
+                      dueDateUnix
+                    );
                 transactionHash = result.transactionHash;
                 blockchainTaskId = result.taskId;
               } else {
@@ -767,15 +795,22 @@ export const Tasks = () => {
                 return;
               }
 
-              const result = await contractService.createTaskWithETH(
-                formData.title,
-                formData.description,
-                assigneeAddress,
-                dueDateUnix,
-                rewardAmountStr
-              );
-                transactionHash = result.transactionHash;
-                blockchainTaskId = result.taskId;
+              const result = assigneeAddress
+                ? await contractService.createAssignedTaskWithETH(
+                    formData.title,
+                    formData.description,
+                    assigneeAddress,
+                    dueDateUnix,
+                    rewardAmountStr
+                  )
+                : await contractService.createOpenTaskWithETH(
+                    formData.title,
+                    formData.description,
+                    dueDateUnix,
+                    rewardAmountStr
+                  );
+              transactionHash = result.transactionHash;
+              blockchainTaskId = result.taskId;
               }
 
               showToast('Task created on blockchain!', 'success');
@@ -916,29 +951,52 @@ export const Tasks = () => {
     }
 
     try {
-      // Redux Action: toggleTaskComplete(taskId) dispatched
-      // Optimistic Update: Mark task as completed (handled by Redux)
-      const result = await dispatch(toggleTaskComplete({ taskId: task.id, userId: user.id })).unwrap();
+      let completionResult: any = null;
       
-      // API Response SUCCESS
-      // If reward: Show reward notification
-      if (task.hasWeb3Reward && result.blockchainTxHash) {
-        if (task.rewardToken) {
-          showToast(`Task completed! Token reward released. Transaction: ${result.blockchainTxHash.substring(0, 10)}...`, 'success');
-        } else {
-          showToast(`Task completed! ETH reward released. Transaction: ${result.blockchainTxHash.substring(0, 10)}...`, 'success');
+      // CHECK: Task has Web3 reward?
+      if (task.hasWeb3Reward && task.blockchainTaskId) {
+        // Complete via smart contract
+        try {
+          await contractService.connect();
+          const contractResult = await contractService.completeTask(parseInt(task.blockchainTaskId));
+          
+          let message = 'Task completed! Reward released!';
+          if (contractResult.badgeTokenId) {
+            message += ` Badge minted! Token ID: ${contractResult.badgeTokenId}`;
+          }
+          
+          showToast(message, 'success');
+          
+          // Also update backend with transaction hash and badge token ID
+          completionResult = await dispatch(toggleTaskComplete({ 
+            taskId: task.id, 
+            userId: user.id,
+            transactionHash: contractResult.receipt.hash,
+            badgeTokenId: contractResult.badgeTokenId
+          })).unwrap();
+          
+          // Refresh tasks to get updated status
+          await dispatch(fetchTasks(user.id));
+        } catch (contractError: any) {
+          console.error('Contract complete error:', contractError);
+          showToast(`Failed to complete task on blockchain: ${contractError.message}`, 'error');
+          return;
         }
       } else {
+        // Complete via API only
+        completionResult = await dispatch(toggleTaskComplete({ taskId: task.id, userId: user.id })).unwrap();
+        
+        // API Response SUCCESS
         showToast('Task completed successfully!', 'success');
-      }
-
-      // If NFT: Show NFT minted notification
-      if (result.badgeTokenId) {
-        showToast(`Achievement badge minted! Token ID: ${result.badgeTokenId}`, 'success');
+        
+        // If badge was minted (from backend), show notification
+        if (completionResult.badgeTokenId) {
+          showToast(`Achievement badge minted! Token ID: ${completionResult.badgeTokenId}`, 'success');
+        }
       }
 
       // CHECK: All tasks completed?
-      if (result.stats?.allTasksCompleted) {
+      if (completionResult?.stats?.allTasksCompleted) {
         // Show celebration animation
         setTimeout(() => {
           showToast('Congratulations! All tasks completed!', 'success');
@@ -1162,15 +1220,27 @@ export const Tasks = () => {
                 </Input>
               </FormGroup>
               <FormGroup>
-                <Label htmlFor="assignee">Assignee (Optional - Wallet Address or User ID)</Label>
+                <Label htmlFor="assignee">
+                  Assignee (Optional)
+                  {formData.hasWeb3Reward && (
+                    <span style={{ fontSize: '0.875rem', color: '#6366f1', marginLeft: '0.5rem' }}>
+                      💡 Leave empty to create an open task (anyone can claim)
+                    </span>
+                  )}
+                </Label>
                 <Input
                   type="text"
                   id="assignee"
                   name="assignee"
                   value={formData.assignee}
                   onChange={handleChange}
-                  placeholder="0x... or user ID"
+                  placeholder={formData.hasWeb3Reward ? "0x... (leave empty for open task)" : "0x... or user ID"}
                 />
+                {formData.hasWeb3Reward && !formData.assignee && (
+                  <div style={{ fontSize: '0.875rem', color: '#10b981', marginTop: '0.5rem' }}>
+                    ✓ This will be an open task - anyone can claim it
+                  </div>
+                )}
               </FormGroup>
               <FormGroup>
                 <Label htmlFor="tags">Tags (Optional - comma separated)</Label>

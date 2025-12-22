@@ -1,16 +1,19 @@
 // src/services/contractService.ts
 import { ethers } from "ethers";
 import TaskManagerABI from '../../abis/TaskManager.json';
+import TaskBadgeABI from '../../abis/TaskBadge.json';
 import RewardTokenABI from '../../abis/RewardToken.json';
 
 // Contract addresses from environment variables
 const TASK_MANAGER_ADDRESS = import.meta.env.VITE_TASK_MANAGER_CONTRACT_ADDRESS;
+const TASK_BADGE_ADDRESS = import.meta.env.VITE_TASK_BADGE_CONTRACT_ADDRESS;
 const REWARD_TOKEN_ADDRESS = import.meta.env.VITE_REWARD_TOKEN_CONTRACT_ADDRESS;
 
 export class ContractService {
   private provider: ethers.BrowserProvider | null = null;
   private signer: ethers.JsonRpcSigner | null = null;
   private taskManager: ethers.Contract | null = null;
+  private taskBadge: ethers.Contract | null = null;
   private rewardToken: ethers.Contract | null = null;
 
   async connect() {
@@ -27,6 +30,14 @@ export class ContractService {
       this.taskManager = new ethers.Contract(
         TASK_MANAGER_ADDRESS,
         TaskManagerABI as any,
+        this.signer
+      );
+    }
+
+    if (TASK_BADGE_ADDRESS) {
+      this.taskBadge = new ethers.Contract(
+        TASK_BADGE_ADDRESS,
+        TaskBadgeABI as any,
         this.signer
       );
     }
@@ -51,12 +62,62 @@ export class ContractService {
     return await this.signer.getAddress();
   }
 
+  // Create an open task (anyone can claim) - assignee = address(0)
+  async createOpenTaskWithETH(
+    title: string,
+    description: string,
+    dueDate: number, // Unix timestamp
+    rewardAmount: string // Amount in ETH (e.g., "0.1")
+  ) {
+    return this.createTaskWithETHInternal(title, description, ethers.ZeroAddress, dueDate, rewardAmount);
+  }
+
+  // Create a pre-assigned task
+  async createAssignedTaskWithETH(
+    title: string,
+    description: string,
+    assignee: string,
+    dueDate: number, // Unix timestamp
+    rewardAmount: string // Amount in ETH (e.g., "0.1")
+  ) {
+    // Normalize and validate assignee address
+    let normalizedAssignee: string;
+    try {
+      normalizedAssignee = ethers.getAddress(assignee);
+    } catch (error: any) {
+      throw new Error(`Invalid assignee address format: ${assignee}. Error: ${error.message}`);
+    }
+
+    if (normalizedAssignee === ethers.ZeroAddress) {
+      throw new Error("Assignee cannot be the zero address. Use createOpenTaskWithETH for open tasks.");
+    }
+
+    return this.createTaskWithETHInternal(title, description, normalizedAssignee, dueDate, rewardAmount);
+  }
+
+  // Legacy method - kept for backward compatibility
   async createTaskWithETH(
     title: string,
     description: string,
     assignee: string,
     dueDate: number, // Unix timestamp
     rewardAmount: string // Amount in ETH (e.g., "0.1")
+  ) {
+    // If assignee is empty or zero address, create open task
+    if (!assignee || assignee === '' || assignee === ethers.ZeroAddress) {
+      return this.createOpenTaskWithETH(title, description, dueDate, rewardAmount);
+    }
+    
+    return this.createAssignedTaskWithETH(title, description, assignee, dueDate, rewardAmount);
+  }
+
+  // Internal method for creating tasks with ETH
+  private async createTaskWithETHInternal(
+    title: string,
+    description: string,
+    assignee: string, // Can be ZeroAddress for open tasks
+    dueDate: number,
+    rewardAmount: string
   ) {
     if (!TASK_MANAGER_ADDRESS) {
       throw new Error("TaskManager contract address not configured. Please set VITE_TASK_MANAGER_CONTRACT_ADDRESS in your .env file.");
@@ -65,23 +126,6 @@ export class ContractService {
     if (!this.taskManager) {
       throw new Error("Not connected to wallet. Please connect your wallet first.");
     }
-
-    // Normalize and validate assignee address
-    let normalizedAssignee: string;
-    try {
-      // ethers.getAddress normalizes to checksum format and validates
-      normalizedAssignee = ethers.getAddress(assignee);
-    } catch (error: any) {
-      throw new Error(`Invalid assignee address format: ${assignee}. Error: ${error.message}`);
-    }
-
-    // Validate assignee is not zero address
-    if (normalizedAssignee === ethers.ZeroAddress) {
-      throw new Error("Assignee cannot be the zero address");
-    }
-    
-    // Use normalized address for contract call
-    assignee = normalizedAssignee;
 
     // Validate due date is in the future
     // Use a small buffer (60 seconds) to account for blockchain timestamp differences
@@ -265,6 +309,36 @@ export class ContractService {
     }
   }
 
+  // Create an open task with token reward
+  async createOpenTaskWithToken(
+    title: string,
+    description: string,
+    rewardAmount: string,
+    tokenAddress: string,
+    dueDate: number
+  ) {
+    return this.createTaskWithTokenInternal(title, description, ethers.ZeroAddress, rewardAmount, tokenAddress, dueDate);
+  }
+
+  // Create an assigned task with token reward
+  async createAssignedTaskWithToken(
+    title: string,
+    description: string,
+    assignee: string,
+    rewardAmount: string,
+    tokenAddress: string,
+    dueDate: number
+  ) {
+    if (!ethers.isAddress(assignee)) {
+      throw new Error("Invalid assignee address");
+    }
+    if (assignee === ethers.ZeroAddress) {
+      throw new Error("Assignee cannot be zero address. Use createOpenTaskWithToken for open tasks.");
+    }
+    return this.createTaskWithTokenInternal(title, description, assignee, rewardAmount, tokenAddress, dueDate);
+  }
+
+  // Legacy method - kept for backward compatibility
   async createTaskWithToken(
     title: string,
     description: string,
@@ -273,25 +347,45 @@ export class ContractService {
     tokenAddress: string,
     dueDate: number
   ) {
+    // If assignee is empty or zero address, create open task
+    if (!assignee || assignee === '' || assignee === ethers.ZeroAddress) {
+      return this.createOpenTaskWithToken(title, description, rewardAmount, tokenAddress, dueDate);
+    }
+    
+    return this.createAssignedTaskWithToken(title, description, assignee, rewardAmount, tokenAddress, dueDate);
+  }
+
+  // Internal method for creating tasks with tokens
+  private async createTaskWithTokenInternal(
+    title: string,
+    description: string,
+    assignee: string, // Can be ZeroAddress for open tasks
+    rewardAmount: string,
+    tokenAddress: string,
+    dueDate: number
+  ) {
     if (!TASK_MANAGER_ADDRESS) {
       throw new Error("TaskManager contract address not configured. Please set VITE_TASK_MANAGER_CONTRACT_ADDRESS in your .env file.");
     }
 
-    if (!this.taskManager || !this.rewardToken) {
-      throw new Error("Not connected to wallet or token contract not configured");
-    }
-
-    if (!ethers.isAddress(assignee)) {
-      throw new Error("Invalid assignee address");
+    if (!this.taskManager) {
+      throw new Error("Not connected to wallet or contract not configured");
     }
 
     if (!ethers.isAddress(tokenAddress)) {
       throw new Error("Invalid token address");
     }
 
+    // Get token contract instance
+    const tokenContract = new ethers.Contract(
+      tokenAddress,
+      RewardTokenABI as any,
+      this.signer
+    );
+
     // First, approve the contract to spend tokens
     const amount = ethers.parseUnits(rewardAmount, 18); // Assuming 18 decimals
-    const approveTx = await this.rewardToken.approve(TASK_MANAGER_ADDRESS, amount);
+    const approveTx = await tokenContract.approve(TASK_MANAGER_ADDRESS, amount);
     await approveTx.wait();
 
     // Then create the task
@@ -335,7 +429,29 @@ export class ContractService {
     }
 
     const tx = await this.taskManager.completeTask(taskId);
-    return await tx.wait();
+    const receipt = await tx.wait();
+    
+    // Extract badge token ID from TaskCompleted event
+    const taskCompletedEvent = receipt.logs.find((log: any) => {
+      try {
+        const parsed = this.taskManager!.interface.parseLog(log);
+        return parsed?.name === "TaskCompleted";
+      } catch {
+        return false;
+      }
+    });
+
+    let badgeTokenId: bigint | null = null;
+    if (taskCompletedEvent) {
+      const parsed = this.taskManager!.interface.parseLog(taskCompletedEvent);
+      // TaskCompleted event: (taskId, assignee, rewardAmount, badgeTokenId)
+      badgeTokenId = parsed?.args[3] || null;
+    }
+
+    return {
+      receipt,
+      badgeTokenId: badgeTokenId ? badgeTokenId.toString() : null
+    };
   }
 
   async getTask(taskId: number | string) {
@@ -345,11 +461,81 @@ export class ContractService {
     return await this.taskManager.getTask(taskId);
   }
 
-  async getUserTasks(userAddress: string) {
+  // Claim an open task
+  async claimTask(taskId: number | string) {
     if (!this.taskManager) {
       throw new Error("Not connected to wallet");
     }
-    return await this.taskManager.getUserTasks(userAddress);
+
+    const tx = await this.taskManager.claimTask(taskId);
+    const receipt = await tx.wait();
+    
+    return {
+      transactionHash: receipt.hash,
+      receipt
+    };
+  }
+
+  // Get all open tasks (for browsing)
+  async getAllOpenTasks() {
+    if (!this.taskManager) {
+      throw new Error("Not connected to wallet");
+    }
+    return await this.taskManager.getAllOpenTasks();
+  }
+
+  // Get tasks created by user
+  async getUserCreatedTasks(userAddress: string) {
+    if (!this.taskManager) {
+      throw new Error("Not connected to wallet");
+    }
+    return await this.taskManager.getUserCreatedTasks(userAddress);
+  }
+
+  // Get tasks assigned to user
+  async getUserAssignedTasks(userAddress: string) {
+    if (!this.taskManager) {
+      throw new Error("Not connected to wallet");
+    }
+    return await this.taskManager.getUserAssignedTasks(userAddress);
+  }
+
+  // Legacy method - kept for backward compatibility
+  async getUserTasks(userAddress: string) {
+    // Return both created and assigned tasks
+    const [created, assigned] = await Promise.all([
+      this.getUserCreatedTasks(userAddress),
+      this.getUserAssignedTasks(userAddress)
+    ]);
+    
+    // Combine and deduplicate task IDs
+    const allTaskIds = [...created, ...assigned];
+    const uniqueTaskIds = Array.from(new Set(allTaskIds.map(id => id.toString()))).map(id => BigInt(id));
+    return uniqueTaskIds;
+  }
+
+  // Get badge for a task
+  async getBadgeForTask(taskId: number | string) {
+    if (!this.taskBadge) {
+      throw new Error("TaskBadge contract not configured");
+    }
+    try {
+      return await this.taskBadge.getBadgeForTask(taskId);
+    } catch {
+      return null; // Badge not minted yet
+    }
+  }
+
+  // Check if a badge exists for a task
+  async hasBadgeForTask(taskId: number | string) {
+    if (!this.taskBadge) {
+      return false;
+    }
+    try {
+      return await this.taskBadge.hasBadgeForTask(taskId);
+    } catch {
+      return false;
+    }
   }
 
   async getBalance(): Promise<string> {

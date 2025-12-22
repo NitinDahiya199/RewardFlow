@@ -30,6 +30,8 @@ import { store } from './store';
 import { useAppSelector, useAppDispatch } from './store/hooks';
 import { logout } from './store/slices/authSlice';
 import { useToast, ToastProvider } from './components/common/Toast';
+import { realtimeService } from './services/realtimeService';
+import { useEffect } from 'react';
 
 const AppContainer = styled.div`
   min-height: 100vh;
@@ -156,11 +158,27 @@ const AppRoutes = () => {
   );
 };
 
+// Initialize WebSocket connection when app starts
+const AppInitializer = () => {
+  useEffect(() => {
+    // Connect to WebSocket server
+    realtimeService.connect();
+
+    // Cleanup on unmount
+    return () => {
+      realtimeService.disconnect();
+    };
+  }, []);
+
+  return null;
+};
+
 function App() {
   return (
     <Provider store={store}>
       <ThemeProvider theme={theme}>
         <ToastProvider>
+          <AppInitializer />
           <Router>
             <AppContainer>
               <AppHeader />

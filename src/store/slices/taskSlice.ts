@@ -222,12 +222,21 @@ export const searchTasks = createAsyncThunk(
 
 export const toggleTaskComplete = createAsyncThunk(
   'tasks/toggleTaskComplete',
-  async (taskData: { taskId: string; userId: string }, { rejectWithValue }) => {
+  async (taskData: { 
+    taskId: string; 
+    userId: string; 
+    transactionHash?: string; 
+    badgeTokenId?: string | null;
+  }, { rejectWithValue }) => {
     try {
       const response = await fetch(`http://localhost:5000/api/tasks/${taskData.taskId}/complete`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: taskData.userId }),
+        body: JSON.stringify({ 
+          userId: taskData.userId,
+          ...(taskData.transactionHash && { transactionHash: taskData.transactionHash }),
+          ...(taskData.badgeTokenId && { badgeTokenId: taskData.badgeTokenId }),
+        }),
       });
 
       if (!response.ok) {
@@ -258,6 +267,34 @@ const taskSlice = createSlice({
   reducers: {
     clearError: (state) => {
       state.error = null;
+    },
+    // Synchronous actions for WebSocket updates
+    addTaskFromSocket: (state, action: { payload: Task }) => {
+      const task = action.payload;
+      // Check if task already exists (avoid duplicates)
+      const existingIndex = state.tasks.findIndex(t => t.id === task.id);
+      if (existingIndex === -1) {
+        state.tasks.unshift({
+          ...task,
+          createdAt: formatDate(task.createdAt),
+          dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
+        });
+      }
+    },
+    updateTaskFromSocket: (state, action: { payload: Task }) => {
+      const task = action.payload;
+      const index = state.tasks.findIndex(t => t.id === task.id);
+      if (index !== -1) {
+        state.tasks[index] = {
+          ...state.tasks[index],
+          ...task,
+          createdAt: formatDate(task.createdAt),
+          dueDate: task.dueDate ? new Date(task.dueDate).toISOString() : null,
+        };
+      }
+    },
+    deleteTaskFromSocket: (state, action: { payload: string }) => {
+      state.tasks = state.tasks.filter(task => task.id !== action.payload);
     },
   },
   extraReducers: (builder) => {
@@ -445,6 +482,13 @@ const taskSlice = createSlice({
 
 export const {
   clearError,
+} = taskSlice.actions;
+
+export const { 
+  clearError, 
+  addTaskFromSocket, 
+  updateTaskFromSocket, 
+  deleteTaskFromSocket 
 } = taskSlice.actions;
 
 export default taskSlice.reducer;
