@@ -83,7 +83,7 @@ io.on('connection', (socket) => {
 
 // Comments routes
 // GET /api/tasks/:id/comments - Get all comments for a task
-app.get('/api/tasks/:id/comments', async (req, res) => {
+app.get('/api/tasks/:id/comments', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -109,7 +109,7 @@ app.get('/api/tasks/:id/comments', async (req, res) => {
 });
 
 // POST /api/tasks/:id/comments - Add a comment to a task
-app.post('/api/tasks/:id/comments', async (req, res) => {
+app.post('/api/tasks/:id/comments', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { content, userId } = req.body;
@@ -181,12 +181,12 @@ export { io };
 const nonceStore: Map<string, { nonce: string; expiresAt: number }> = new Map();
 const NONCE_EXPIRY = 5 * 60 * 1000; // 5 minutes
 
-app.get('/api/health', (req, res) => {
+app.get('/api/health', (req: Request, res: Response) => {
     res.json({message : 'Server is healthy' });
 })
 
 // Auth routes
-app.post('/api/auth/signup', async (req, res) => {
+app.post('/api/auth/signup', async (req: Request, res: Response) => {
   try {
     const { name, email, password, confirmPassword } = req.body;
 
@@ -252,7 +252,7 @@ app.post('/api/auth/signup', async (req, res) => {
   }
 });
 
-app.post('/api/auth/login', async (req, res) => {
+app.post('/api/auth/login', async (req: Request, res: Response) => {
   try {
     const { email, password } = req.body;
 
@@ -327,7 +327,7 @@ app.post('/api/auth/login', async (req, res) => {
 });
 
 // Get nonce for Web3 authentication
-app.post('/api/auth/web3-nonce', async (req, res) => {
+app.post('/api/auth/web3-nonce', async (req: Request, res: Response) => {
   try {
     const { walletAddress } = req.body;
 
@@ -361,7 +361,7 @@ app.post('/api/auth/web3-nonce', async (req, res) => {
 });
 
 // MFA Setup - Generate secret and QR code
-app.post('/api/auth/mfa/setup', async (req, res) => {
+app.post('/api/auth/mfa/setup', async (req: Request, res: Response) => {
   try {
     const { userId } = req.body;
 
@@ -404,7 +404,7 @@ app.post('/api/auth/mfa/setup', async (req, res) => {
 });
 
 // MFA Verify - Verify code and enable MFA
-app.post('/api/auth/mfa/verify', async (req, res) => {
+app.post('/api/auth/mfa/verify', async (req: Request, res: Response) => {
   try {
     const { userId, code, secret, action } = req.body; // action: 'setup' or 'login'
 
@@ -528,7 +528,7 @@ app.post('/api/auth/mfa/verify', async (req, res) => {
 });
 
 // MFA Disable
-app.post('/api/auth/mfa/disable', async (req, res) => {
+app.post('/api/auth/mfa/disable', async (req: Request, res: Response) => {
   try {
     const { userId, code } = req.body;
 
@@ -579,7 +579,7 @@ app.post('/api/auth/mfa/disable', async (req, res) => {
 });
 
 // Web3 wallet authentication endpoint
-app.post('/api/auth/web3-verify', async (req, res) => {
+app.post('/api/auth/web3-verify', async (req: Request, res: Response) => {
   try {
     const { walletAddress, signature, nonce } = req.body;
 
@@ -690,7 +690,7 @@ app.post('/api/auth/web3-verify', async (req, res) => {
 
 // Task routes
 // GET /api/tasks/public - Get all public tasks (no auth required)
-app.get('/api/tasks/public', async (req, res) => {
+app.get('/api/tasks/public', async (req: Request, res: Response) => {
   try {
     // Get all non-completed tasks, ordered by creation date
     const tasks = await prisma.task.findMany({
@@ -710,7 +710,7 @@ app.get('/api/tasks/public', async (req, res) => {
     });
 
     // Format response to include creator name
-    const formattedTasks = tasks.map(task => ({
+    const formattedTasks = tasks.map((task: any) => ({
       id: task.id,
       title: task.title,
       description: task.description,
@@ -735,7 +735,7 @@ app.get('/api/tasks/public', async (req, res) => {
 
 // GET /api/tasks - Get all tasks for a user (requires auth)
 // Returns tasks created by the user OR tasks assigned to the user (claimed tasks)
-app.get('/api/tasks', async (req, res) => {
+app.get('/api/tasks', async (req: Request, res: Response) => {
   try {
     const { userId } = req.query;
 
@@ -761,7 +761,7 @@ app.get('/api/tasks', async (req, res) => {
 });
 
 // GET /api/tasks/search - Search tasks with full-text search
-app.get('/api/tasks/search', async (req, res) => {
+app.get('/api/tasks/search', async (req: Request, res: Response) => {
   try {
     const { q: query, userId } = req.query;
 
@@ -800,7 +800,7 @@ app.get('/api/tasks/search', async (req, res) => {
     });
 
     // Simple relevance ranking: prioritize title matches
-    const rankedTasks = tasks.sort((a, b) => {
+    const rankedTasks = tasks.sort((a: any, b: any) => {
       const aTitleMatch = a.title.toLowerCase().includes(searchQuery.toLowerCase());
       const bTitleMatch = b.title.toLowerCase().includes(searchQuery.toLowerCase());
       
@@ -818,7 +818,7 @@ app.get('/api/tasks/search', async (req, res) => {
 });
 
 // POST /api/tasks - Create a new task
-app.post('/api/tasks', async (req, res) => {
+app.post('/api/tasks', async (req: Request, res: Response) => {
   try {
     const { 
       title, 
@@ -918,7 +918,7 @@ app.post('/api/tasks', async (req, res) => {
 });
 
 // PUT /api/tasks/:id - Update a task
-app.put('/api/tasks/:id', async (req, res) => {
+app.put('/api/tasks/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { 
@@ -1004,7 +1004,7 @@ app.put('/api/tasks/:id', async (req, res) => {
 });
 
 // POST /api/tasks/:id/claim - Claim an open task
-app.post('/api/tasks/:id/claim', async (req, res) => {
+app.post('/api/tasks/:id/claim', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { userId, transactionHash } = req.body; // User claiming the task
@@ -1075,7 +1075,7 @@ app.post('/api/tasks/:id/claim', async (req, res) => {
 });
 
 // PATCH /api/tasks/:id/complete - Complete a task (with Web3 rewards)
-app.patch('/api/tasks/:id/complete', async (req, res) => {
+app.patch('/api/tasks/:id/complete', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { userId, transactionHash, badgeTokenId } = req.body; // User completing the task
@@ -1224,7 +1224,7 @@ app.patch('/api/tasks/:id/complete', async (req, res) => {
 });
 
 // PATCH /api/tasks/:id/toggle - Toggle task completion (backward compatibility)
-app.patch('/api/tasks/:id/toggle', async (req, res) => {
+app.patch('/api/tasks/:id/toggle', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
 
@@ -1261,7 +1261,7 @@ app.patch('/api/tasks/:id/toggle', async (req, res) => {
 });
 
 // DELETE /api/tasks/:id - Delete a task
-app.delete('/api/tasks/:id', async (req, res) => {
+app.delete('/api/tasks/:id', async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
     const { userId } = req.body; // User deleting the task
@@ -1363,7 +1363,7 @@ app.delete('/api/tasks/:id', async (req, res) => {
 
 // User profile routes
 // GET /api/users/:userId/profile - Get user profile
-app.get('/api/users/:userId/profile', async (req, res) => {
+app.get('/api/users/:userId/profile', async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
 
@@ -1409,7 +1409,7 @@ app.get('/api/users/:userId/profile', async (req, res) => {
 });
 
 // PUT /api/users/:userId/profile - Update user profile
-app.put('/api/users/:userId/profile', async (req, res) => {
+app.put('/api/users/:userId/profile', async (req: Request, res: Response) => {
   try {
     const { userId } = req.params;
     const { name, email, bio, phone, location, website, role, company, avatarUrl } = req.body;
