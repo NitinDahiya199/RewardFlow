@@ -1,7 +1,7 @@
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom';
 import { ThemeProvider } from 'styled-components';
 import { theme } from './theme/theme';
-import { Header, HeaderContent, Logo, Nav, NavLink, ProfileIconContainer, ProfileIcon, ProtectedRoute, Button, BottomNav, BottomNavTasksIcon, BottomNavMyTasksIcon, BottomNavProfileIcon, BottomNavDetailsIcon, BottomNavHomeIcon, BottomNavLoginIcon, BottomNavSignUpIcon } from './components/common';
+import { Header, HeaderContent, Logo, Nav, NavLink, ProfileIconContainer, ProfileIcon, ProtectedRoute, Button, BottomNav, BottomNavTasksIcon, BottomNavMyTasksIcon, BottomNavProfileIcon, BottomNavDetailsIcon, BottomNavHomeIcon, BottomNavLoginIcon, BottomNavSignUpIcon, InstallPrompt } from './components/common';
 import {
   Landing,
   Login,
@@ -214,6 +214,7 @@ const AppWithBottomNav = () => {
         <AppRoutes />
       </AppContent>
       <BottomNav links={bottomNavLinks} />
+      <InstallPrompt />
     </>
   );
 };

@@ -58,4 +58,5 @@ export { MetaMaskIcon, CoinbaseIcon, WalletConnectIcon } from './WalletIcons';
 export { MFAVerification } from './MFAVerification';
 export { TypingIndicator } from './TypingIndicator';
 export { CommentSection } from './CommentSection';
+export { InstallPrompt } from './InstallPrompt';
 
